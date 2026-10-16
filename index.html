@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="やる気">
 <meta name="theme-color" content="#5b5bf0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>やる気アップ</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -103,11 +106,50 @@
   }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
+  /* 上部ボタン(同期・更新) */
+  .topbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .sync-btn { background: var(--card); color: var(--muted); border: none; border-radius: 20px; padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .sync-btn.on { background: var(--accent); color: #fff; }
+  .reload-btn { display: grid; place-items: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--card); color: var(--muted); cursor: pointer; flex-shrink: 0; transition: transform .45s cubic-bezier(.2,.8,.2,1), color .2s; }
+  .reload-btn:hover { color: var(--accent); }
+  .reload-btn:active { transform: rotate(-180deg); color: var(--accent); }
+
+  /* タイトル行と鉛筆 */
+  .titlerow { display: flex; align-items: center; gap: 6px; }
+  .edit-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px; display: grid; place-items: center; flex-shrink: 0; }
+  .edit-btn:active { transform: scale(0.9); color: var(--accent); }
+
+  /* 編集ダイアログ */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 20px; z-index: 100; overflow-y: auto; }
+  .modal { background: var(--card); border-radius: 18px; padding: 18px; width: 100%; max-width: 400px; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+  .modal-label { display: block; font-size: 12px; color: var(--muted); margin: 12px 2px 6px; }
+  .modal-input { width: 100%; background: var(--bg); border: none; border-radius: 12px; padding: 14px; color: var(--text); font-size: 16px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .modal-actions button { flex: 1; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .modal-cancel { background: var(--done); color: var(--muted); }
+  .modal-save { background: var(--accent); color: #fff; }
+
+  /* バックアップ */
+  .backup { display: flex; gap: 8px; }
+  .backup-btn { flex: 1; text-align: center; background: var(--card); color: var(--text); border: none; border-radius: 12px; padding: 13px 14px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .backup-hint { font-size: 11px; color: var(--muted); margin: 8px 4px 0; }
+
   .confetti { position: fixed; top: -10px; width: 10px; height: 14px; z-index: 40; pointer-events: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar">
+    <button id="syncBtn" class="sync-btn" style="display:none">同期</button>
+    <button id="reloadBtn" class="reload-btn" title="最新に更新" aria-label="最新に更新">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+        <path d="M21 3v6h-6"/>
+      </svg>
+    </button>
+  </div>
+
   <div class="status">
     <div class="lv">LEVEL</div>
     <div class="lvnum" id="lvnum">1</div>
@@ -129,30 +171,58 @@
   <ul id="todo"></ul>
   <div class="section-label" id="archLabel">クリア済み</div>
   <ul id="arch"></ul>
+
+  <div class="section-label">バックアップ</div>
+  <div class="backup">
+    <button id="exportBtn" class="backup-btn">書き出し (保存)</button>
+    <label class="backup-btn" for="importFile">読み込み (復元)</label>
+    <input id="importFile" type="file" accept="application/json,.json" style="display:none">
+  </div>
+  <div class="backup-hint">記録をファイルに保存/復元できます。機種変更やバックアップに</div>
 </div>
 
 <div class="toast" id="toast">やったね +10pt</div>
+
+<!-- Firebase (同期用。読み込めない時はローカルのみで動作) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
 const PER_LEVEL = 100;   // 1レベルに必要なポイント
 const PER_CLEAR = 10;    // 1クリアでもらえるポイント
 
-let state = JSON.parse(localStorage.getItem("motiv") || "null") || {
-  tasks: [],      // { id, text, target, progress }
-  xp: 0,
-  log: []         // { id, taskId, text, repNo, target, time }
-};
+// 古いバージョンや読み込んだデータが壊れていても動くよう整える
+// tasks: { id, text, target, progress } / log: { id, taskId, text, repNo, target, time }
+function normalize(s) {
+  if (!s || typeof s !== "object") s = {};
+  if (!Array.isArray(s.tasks)) s.tasks = [];
+  if (!Array.isArray(s.log)) s.log = [];
+  if (typeof s.xp !== "number") s.xp = 0;
+  s.tasks.forEach(t => {
+    if (typeof t.target !== "number" || t.target < 1) t.target = 1;
+    if (typeof t.progress !== "number") t.progress = t.done ? 1 : 0;
+  });
+  return s;
+}
 
-// 古いバージョンのデータが残っていても壊れないよう整える
-if (!Array.isArray(state.tasks)) state.tasks = [];
-if (!Array.isArray(state.log)) state.log = [];
-if (typeof state.xp !== "number") state.xp = 0;
-state.tasks.forEach(t => {
-  if (typeof t.target !== "number" || t.target < 1) t.target = 1;
-  if (typeof t.progress !== "number") t.progress = t.done ? 1 : 0;
-});
+let state = normalize(JSON.parse(localStorage.getItem("motiv") || "null"));
+let applyingRemote = false;
 
-function save() { localStorage.setItem("motiv", JSON.stringify(state)); }
+function save() {
+  state.updatedAt = Date.now();
+  localStorage.setItem("motiv", JSON.stringify(state));
+  if (!applyingRemote) pushToCloud();
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 1500);
+}
 
 function todayCount() {
   const t = new Date().toDateString();
@@ -204,10 +274,17 @@ function makeActiveLi(t) {
 
   const body = document.createElement("div");
   body.className = "body";
+  const titleRow = document.createElement("div");
+  titleRow.className = "titlerow";
   const label = document.createElement("div");
   label.className = "label";
   label.textContent = t.text;
-  body.appendChild(label);
+  const edit = document.createElement("button");
+  edit.className = "edit-btn"; edit.title = "編集"; edit.setAttribute("aria-label", "編集");
+  edit.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  edit.onclick = () => editTask(t.id);
+  titleRow.append(label, edit);
+  body.appendChild(titleRow);
   if (t.target > 1) {
     const pbar = document.createElement("div");
     pbar.className = "pbar";
@@ -294,6 +371,50 @@ function undoRep(logId) {
   save(); render();
 }
 
+// 鉛筆から: タイトルと回数を編集するダイアログ
+function editTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay";
+  const box = document.createElement("div");
+  box.className = "modal";
+  box.innerHTML =
+    '<div class="modal-title">やることを編集</div>' +
+    '<label class="modal-label">タイトル</label>' +
+    '<input class="modal-input" id="editText" type="text" maxlength="80">' +
+    '<label class="modal-label">回数 (いま ' + t.progress + ' 回済み)</label>' +
+    '<input class="modal-input" id="editTarget" type="number" min="1" max="9999">' +
+    '<div class="modal-actions">' +
+      '<button class="modal-cancel" id="editCancel">キャンセル</button>' +
+      '<button class="modal-save" id="editSave">保存</button>' +
+    '</div>';
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  const textEl = box.querySelector("#editText");
+  const targetEl = box.querySelector("#editTarget");
+  textEl.value = t.text;
+  targetEl.value = t.target;
+
+  const close = () => ov.remove();
+  box.querySelector("#editCancel").onclick = close;
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  box.querySelector("#editSave").onclick = () => {
+    const text = textEl.value.trim();
+    const target = parseInt(targetEl.value, 10);
+    if (!text) { showToast("タイトルが空です"); return; }
+    if (!target || target < 1) { showToast("回数は1以上にしてください"); return; }
+    if (target < t.progress) { showToast("済んだ回数(" + t.progress + ")以上にしてください"); return; }
+    t.text = text;
+    t.target = target;
+    // クリア済みの記録の表示も合わせる
+    state.log.forEach(e => { if (e.taskId === t.id) { e.text = text; e.target = target; } });
+    save(); render();
+    close();
+    showToast("変更しました");
+  };
+}
+
 function removeTask(id) {
   state.tasks = state.tasks.filter(x => x.id !== id);
   // そのタスクの記録も消す
@@ -327,14 +448,143 @@ function celebrate(completed) {
 }
 
 document.getElementById("addbtn").onclick = addTask;
-document.getElementById("input").addEventListener("keydown", e => {
-  if (e.key === "Enter") document.getElementById("target").focus();
-});
-document.getElementById("target").addEventListener("keydown", e => {
-  if (e.key === "Enter") addTask();
-});
+// Enterでは追加しない(＋ボタンのみ)。欄の移動はTab
+document.getElementById("input").addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
+document.getElementById("target").addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
+document.getElementById("reloadBtn").onclick = () => location.reload();
+
+// ===== バックアップ(書き出し/読み込み) =====
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "yaruki-backup-" + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast("書き出しました");
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let obj;
+    try { obj = JSON.parse(reader.result); }
+    catch (e) { showToast("読み込めませんでした (ファイル形式)"); return; }
+    if (!obj || !Array.isArray(obj.tasks)) { showToast("バックアップではないようです"); return; }
+    if (!confirm("今の記録を、読み込んだ内容で置き換えます。よろしいですか？")) return;
+    state = normalize(obj);
+    save(); render();
+    showToast("読み込みました ✅");
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportBtn").onclick = exportData;
+document.getElementById("importFile").onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) importData(f);
+  e.target.value = "";
+};
 
 render();
+
+/* ===== クラウド同期 (Firebase + Googleログイン) ===== */
+// そろそろと同じFirebaseプロジェクトを使い、保存先だけ別(apps/motivation)
+const firebaseConfig = {
+  apiKey: "AIzaSyC6KM0ZiG4boea6h8KL7lGEnREC2Itm9oY",
+  authDomain: "cycle-tracker-app-77383.firebaseapp.com",
+  projectId: "cycle-tracker-app-77383",
+  storageBucket: "cycle-tracker-app-77383.firebasestorage.app",
+  messagingSenderId: "217290900134",
+  appId: "1:217290900134:web:2c6d1a37ca964e2749ea67"
+};
+
+let fbUser = null, fbDb = null, fbUnsub = null;
+
+(function initSync() {
+  if (typeof firebase === "undefined") return; // SDK未読込(オフライン等)→ローカルのみ
+  try {
+    firebase.initializeApp(firebaseConfig);
+    fbDb = firebase.firestore();
+    firebase.auth().getRedirectResult().catch(() => {});
+    firebase.auth().onAuthStateChanged(onAuthChanged);
+  } catch (e) { console.warn("sync init failed", e); }
+  const btn = document.getElementById("syncBtn");
+  btn.style.display = "inline-block";
+  btn.onclick = onSyncClick;
+  renderSyncUI();
+})();
+
+function dataDoc() {
+  return fbDb.collection("users").doc(fbUser.uid).collection("apps").doc("motivation");
+}
+
+function onAuthChanged(user) {
+  fbUser = user;
+  renderSyncUI();
+  if (fbUnsub) { fbUnsub(); fbUnsub = null; }
+  if (user) startSync();
+}
+
+function startSync() {
+  dataDoc().get().then(snap => {
+    const remote = snap.exists ? snap.data() : null;
+    const localAt = state.updatedAt || 0;
+    const remoteAt = remote ? (remote.updatedAt || 0) : -1;
+    if (remote && remoteAt >= localAt) applyRemote(remote);
+    else pushToCloud(); // ローカルが新しい/クラウドが空 → 上げる
+    fbUnsub = dataDoc().onSnapshot(s => {
+      if (!s.exists) return;
+      const r = s.data();
+      if ((r.updatedAt || 0) > (state.updatedAt || 0)) applyRemote(r);
+    });
+  }).catch(e => { console.warn(e); showToast("同期の読み込みに失敗"); });
+}
+
+function applyRemote(r) {
+  applyingRemote = true;
+  const at = r.updatedAt || Date.now();
+  state = normalize(r);
+  state.updatedAt = at;
+  localStorage.setItem("motiv", JSON.stringify(state));
+  render();
+  applyingRemote = false;
+  showToast("同期で最新になりました");
+}
+
+function pushToCloud() {
+  if (!fbUser || !fbDb) return;
+  try { dataDoc().set(JSON.parse(JSON.stringify(state))); }
+  catch (e) { console.warn("push failed", e); }
+}
+
+function renderSyncUI() {
+  const btn = document.getElementById("syncBtn");
+  if (!btn) return;
+  if (fbUser) { btn.textContent = "同期中"; btn.classList.add("on"); btn.title = (fbUser.email || "") + " / タップでログアウト"; }
+  else { btn.textContent = "同期"; btn.classList.remove("on"); btn.title = "Googleでログインして同期"; }
+}
+
+function onSyncClick() {
+  if (typeof firebase === "undefined") { showToast("同期にはネット接続が必要です"); return; }
+  if (fbUser) {
+    if (confirm("同期をオフにしますか？（ログアウト）\n記録はこの端末に残ります")) firebase.auth().signOut();
+    return;
+  }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).catch(err => {
+    const code = err && err.code;
+    if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request" || code === "auth/operation-not-supported-in-this-environment" || code === "auth/popup-closed-by-user") {
+      firebase.auth().signInWithRedirect(provider);
+    } else {
+      console.warn(err);
+      showToast("ログインできませんでした");
+    }
+  });
+}
 </script>
 </body>
 </html>

@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="やる気">
+<meta name="apple-mobile-web-app-title" content="とりあえず">
 <meta name="theme-color" content="#5b5bf0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>やる気アップ</title>
+<title>とりあえず</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   :root {
@@ -106,8 +106,80 @@
   }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
+  /* ポッチを押した時のモーション */
+  .check { position: relative; border-width: 1.5px; }
+  .check svg { display: block; overflow: visible; }
+  .check svg path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+  li.arch .check svg path { stroke-dashoffset: 0; }
+  .check.popping svg path { animation: draw .32s .1s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .check:active { transform: scale(0.8); transition: transform .08s; }
+  /* ポッチの色: Levelカードと同じ紺紫→ピンクのグラデを、少し透けさせたガラス調 */
+  .check.popping, li.arch .check {
+    background: linear-gradient(135deg, rgba(108,108,255,.82), rgba(255,108,171,.78));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(108,108,255,.3), inset 0 1px 1px rgba(255,255,255,.55);
+  }
+  li.arch .check { box-shadow: 0 2px 6px rgba(108,108,255,.22), inset 0 1px 1px rgba(255,255,255,.45); }
+  .check.popping svg, li.arch .check svg { filter: drop-shadow(0 1px 1.5px rgba(60,40,140,.4)); }
+  .check.popping { animation: checkpop .6s cubic-bezier(.2,.9,.3,1.6); }
+  @keyframes checkpop { 0% { transform: scale(.8); } 35% { transform: scale(1.5); } 65% { transform: scale(.92); } 100% { transform: scale(1); } }
+  /* レベルアップの演出(控えめ) */
+  .status .lvnum { transform-origin: left center; }
+  .status .lvnum.lvup { animation: lvup .9s cubic-bezier(.2,.9,.3,1.4); }
+  @keyframes lvup {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.4); text-shadow: 0 0 10px rgba(255,255,255,.3); }
+    100% { transform: scale(1); }
+  }
+  .status.levelup { animation: levelglow 1.1s ease-out; }
+  @keyframes levelglow {
+    0% { box-shadow: 0 10px 30px rgba(108,108,255,.3); filter: brightness(1); }
+    30% { box-shadow: 0 12px 34px rgba(108,108,255,.42); filter: brightness(1.06); }
+    100% { box-shadow: 0 10px 30px rgba(108,108,255,.3); filter: brightness(1); }
+  }
+  /* バーが満タンになった瞬間の「充填」感 */
+  .bar.full { animation: barflash .55s ease-out; }
+  @keyframes barflash {
+    0% { transform: scaleY(1.7); box-shadow: 0 0 12px rgba(255,255,255,.5); }
+    100% { transform: scaleY(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+  }
+  .bar > i { position: relative; }
+  .bar > i.charged::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 30%;
+    background: linear-gradient(90deg, transparent, rgba(108,108,255,.38), transparent);
+    animation: sweep .3s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes sweep { from { left: -40%; } to { left: 110%; } }
+  .status.pulse { animation: statuspulse .7s cubic-bezier(.2,.8,.2,1); }
+  @keyframes statuspulse {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.03); box-shadow: 0 14px 40px rgba(108,108,255,.6); }
+    100% { transform: scale(1); }
+  }
+  .check.popping::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 1.5px solid rgba(150,130,255,.7); animation: checkring .55s ease-out forwards; pointer-events: none; }
+  @keyframes checkring { from { transform: scale(1); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+  li.doing { box-shadow: 0 0 0 1px rgba(130,120,255,.45), 0 6px 18px rgba(108,108,255,.2); transition: box-shadow .2s; }
+  li.doing .label { color: var(--muted); text-decoration: line-through; transition: color .2s; }
+  li.fresh { animation: fresh 1s cubic-bezier(.2,.8,.2,1); }
+  @keyframes fresh {
+    0% { opacity: 0; transform: translateY(-14px) scale(.97); box-shadow: 0 0 0 2px var(--accent); }
+    35% { opacity: 1; transform: none; box-shadow: 0 0 0 2px var(--accent), 0 6px 20px rgba(108,108,255,.4); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
   /* 上部ボタン(同期・更新) */
-  .topbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .topbar h1 { font-size: 20px; font-weight: 700; }
+  .lead { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  /* クリア済みの見出し(押すと畳める) */
+  .arch-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .arch-toggle .chev { transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  .arch-toggle.closed .chev { transform: rotate(-90deg); }
+  .arch-count { background: var(--done); border-radius: 10px; padding: 1px 8px; font-size: 11px; letter-spacing: 0; }
+  .headbtns { display: flex; align-items: center; gap: 8px; }
   .sync-btn { background: var(--card); color: var(--muted); border: none; border-radius: 20px; padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer; }
   .sync-btn.on { background: var(--accent); color: #fff; }
   .reload-btn { display: grid; place-items: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--card); color: var(--muted); cursor: pointer; flex-shrink: 0; transition: transform .45s cubic-bezier(.2,.8,.2,1), color .2s; }
@@ -141,6 +213,11 @@
 <body>
 <div class="wrap">
   <div class="topbar">
+    <div class="titlebox">
+      <h1>とりあえず</h1>
+      <div class="lead">とりあえず1回。やるたびに成果がたまっていきます</div>
+    </div>
+    <div class="headbtns">
     <button id="syncBtn" class="sync-btn" style="display:none">同期</button>
     <button id="reloadBtn" class="reload-btn" title="最新に更新" aria-label="最新に更新">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -148,6 +225,7 @@
         <path d="M21 3v6h-6"/>
       </svg>
     </button>
+    </div>
   </div>
 
   <div class="status">
@@ -169,7 +247,10 @@
 
   <div class="section-label">やること</div>
   <ul id="todo"></ul>
-  <div class="section-label" id="archLabel">クリア済み</div>
+  <div class="section-label arch-toggle" id="archLabel" role="button" tabindex="0" aria-label="クリア済みを畳む/開く">
+    <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    <span>クリア済み</span><span class="arch-count"></span>
+  </div>
   <ul id="arch"></ul>
 
   <div class="section-label">バックアップ</div>
@@ -208,6 +289,7 @@ function normalize(s) {
 
 let state = normalize(JSON.parse(localStorage.getItem("motiv") || "null"));
 let applyingRemote = false;
+let archOpen = localStorage.getItem("motiv_archOpen") !== "0"; // クリア済みを開いているか(端末ごとに覚える)
 
 function save() {
   state.updatedAt = Date.now();
@@ -237,7 +319,7 @@ function fmtTime(ms) {
   return sameDay ? "今日 " + hm : (d.getMonth()+1) + "/" + d.getDate() + " " + hm;
 }
 
-function render() {
+function render(skipStatus) {
   const todoEl = document.getElementById("todo");
   const archEl = document.getElementById("arch");
   todoEl.innerHTML = ""; archEl.innerHTML = "";
@@ -253,10 +335,17 @@ function render() {
   const logs = state.log.slice().sort((a,b) => b.time - a.time);
   logs.forEach(e => archEl.appendChild(makeArchLi(e)));
   const show = logs.length > 0;
-  document.getElementById("archLabel").style.display = show ? "block" : "none";
-  archEl.style.display = show ? "block" : "none";
+  const archLabel = document.getElementById("archLabel");
+  archLabel.style.display = show ? "flex" : "none";
+  archLabel.querySelector(".arch-count").textContent = logs.length;
+  archLabel.classList.toggle("closed", !archOpen);
+  archEl.style.display = (show && archOpen) ? "block" : "none";
 
-  // ステータス
+  // ステータス(レベルアップ演出の間だけ後回しにできる)
+  if (!skipStatus) renderStatus();
+}
+
+function renderStatus() {
   const lv = Math.floor(state.xp / PER_LEVEL) + 1;
   const inLv = state.xp % PER_LEVEL;
   document.getElementById("lvnum").textContent = lv;
@@ -269,8 +358,23 @@ function makeActiveLi(t) {
   const li = document.createElement("li");
   const check = document.createElement("div");
   check.className = "check";
-  check.textContent = "✓";
-  check.onclick = () => doRep(t.id);
+  check.innerHTML = CHECK_SVG;
+  check.onclick = () => {
+    if (check.classList.contains("popping")) return; // 連打で二重に記録しない
+    check.classList.add("popping");
+    const li = check.closest("li");
+    if (li) li.classList.add("doing");
+    burstAt(check);
+    floatText(check, "+" + PER_CLEAR);
+    // レベルアップになる時は、紙吹雪の途中からバーを満タンまで伸ばし始める
+    if (Math.floor((state.xp + PER_CLEAR) / PER_LEVEL) > Math.floor(state.xp / PER_LEVEL)) {
+      levelUpFlashAt = performance.now() + BAR_START + BAR_FLASH;
+      setTimeout(fillBarFull, BAR_START);
+      setTimeout(flashBar, BAR_START + BAR_FLASH);
+    }
+    celebrate(t.progress + 1 >= t.target);
+    setTimeout(() => doRep(t.id, true), 600); // モーションを見せてから移動
+  };
 
   const body = document.createElement("div");
   body.className = "body";
@@ -309,10 +413,10 @@ function makeActiveLi(t) {
 
 function makeArchLi(e) {
   const li = document.createElement("li");
-  li.className = "arch";
+  li.className = "arch" + (e.id === freshLogId ? " fresh" : "");
   const check = document.createElement("div");
   check.className = "check";
-  check.textContent = "✓";
+  check.innerHTML = CHECK_SVG;
 
   const body = document.createElement("div");
   body.className = "body";
@@ -347,17 +451,113 @@ function addTask() {
   save(); render();
 }
 
-function doRep(id) {
+let freshLogId = null; // 直前に積んだ記録(光らせる用)
+
+// チェックマーク(線が描かれるアニメ用のSVG)
+const CHECK_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg>';
+const BURST_COLORS = ["#8f8fff", "#ff8cc0", "#b9a0ff", "#ffb0d6"];
+
+// ポッチを中心に光の粒が放射状に飛ぶ
+function burstAt(el, count, spread) {
+  const r = el.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const n = count || 14;
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement("div");
+    const size = 5 + Math.random() * 4;
+    p.style.cssText = "position:fixed;left:" + (cx - size / 2) + "px;top:" + (cy - size / 2) + "px;width:" + size + "px;height:" + size + "px;border-radius:50%;pointer-events:none;z-index:60;background:" + BURST_COLORS[i % BURST_COLORS.length];
+    document.body.appendChild(p);
+    const ang = (Math.PI * 2 * i) / n + Math.random() * 0.4;
+    const dist = (36 + Math.random() * 34) * (spread || 1);
+    p.animate([
+      { transform: "translate(0,0) scale(1)", opacity: 1 },
+      { transform: "translate(" + Math.cos(ang) * dist + "px," + Math.sin(ang) * dist + "px) scale(.2)", opacity: 0 }
+    ], { duration: 520 + Math.random() * 220, easing: "cubic-bezier(.15,.7,.3,1)", fill: "forwards" }).onfinish = () => p.remove();
+  }
+}
+
+// 「+10」がふわっと浮かぶ
+function floatText(el, text) {
+  const r = el.getBoundingClientRect();
+  const f = document.createElement("div");
+  f.textContent = text;
+  f.style.cssText = "position:fixed;left:" + (r.left + r.width / 2) + "px;top:" + (r.top - 2) + "px;font-weight:800;font-size:17px;color:#b9b9ff;pointer-events:none;z-index:60;text-shadow:0 2px 8px rgba(0,0,0,.45)";
+  document.body.appendChild(f);
+  f.animate([
+    { transform: "translate(-50%, 0) scale(.7)", opacity: 0 },
+    { transform: "translate(-50%, -14px) scale(1.15)", opacity: 1, offset: 0.25 },
+    { transform: "translate(-50%, -52px) scale(1)", opacity: 0 }
+  ], { duration: 900, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" }).onfinish = () => f.remove();
+}
+
+function doRep(id, silent) {
   const t = state.tasks.find(x => x.id === id);
-  if (!t || t.progress >= t.target) return;
+  if (!t || t.progress >= t.target) { render(); return; }
+  const lvBefore = Math.floor(state.xp / PER_LEVEL);
   t.progress += 1;
   state.xp += PER_CLEAR;
-  state.log.push({
+  const levelUp = Math.floor(state.xp / PER_LEVEL) > lvBefore;
+  const entry = {
     id: Date.now() + Math.random(),
     taskId: t.id, text: t.text, repNo: t.progress, target: t.target, time: Date.now()
-  });
-  celebrate(t.progress >= t.target);
-  save(); render();
+  };
+  state.log.push(entry);
+  if (!silent) celebrate(t.progress >= t.target);
+  freshLogId = entry.id;
+  save(); render(levelUp);
+  freshLogId = null;
+  if (levelUp) { playLevelUp(); return; }
+  // 上のレベルのカードを脈打たせる
+  const st = document.querySelector(".status");
+  if (st) { st.classList.remove("pulse"); void st.offsetWidth; st.classList.add("pulse"); }
+}
+
+// レベルアップ演出のタイミング(ms): 押してからバーが伸び始めるまで / 伸びきるまで
+// 伸び始め / 伸びる時間(一定の速さ) / 光る時刻(満タンになる瞬間) / 光の長さ / 光りきったあとに止まる時間
+const BAR_START = 0, BAR_FILL = 600, BAR_FLASH = 600, FLASH_DUR = 550, HOLD = 100;
+let levelUpFlashAt = 0; // 光る予定の時刻
+
+// バーを光らせる(満タンになった瞬間)
+function flashBar() {
+  const bar = document.getElementById("bar");
+  const track = bar.parentElement;
+  bar.classList.remove("charged"); void bar.offsetWidth; bar.classList.add("charged");
+  track.classList.remove("full"); void track.offsetWidth; track.classList.add("full");
+}
+
+// バーを満タンまで伸ばす
+function fillBarFull() {
+  const bar = document.getElementById("bar");
+  // 一定の速さで伸ばす
+  bar.style.transition = "width " + BAR_FILL + "ms linear";
+  bar.style.width = "100%";
+  document.getElementById("xptext").textContent = PER_LEVEL + " / " + PER_LEVEL + " pt";
+}
+
+// レベルアップ: 満タンになった瞬間に光が走り、新しいレベルに切り替える
+function playLevelUp() {
+  const bar = document.getElementById("bar");
+  const num = document.getElementById("lvnum");
+  const st = document.querySelector(".status");
+  const lbl = document.querySelector(".status .lv");
+  const track = bar.parentElement;
+  fillBarFull(); // 念のため(すでに始まっていれば何も変わらない)
+  // 光りきったあと、少し(HOLD)止まってから新しいレベルへ切り替える
+  const wait = Math.max(0, levelUpFlashAt + FLASH_DUR + HOLD - performance.now());
+  setTimeout(() => {
+    // 満タンから空へ巻き戻る動きは見せず、一瞬で切り替える
+    bar.classList.remove("charged"); track.classList.remove("full");
+    bar.style.transition = "none";
+    renderStatus();
+    void bar.offsetWidth;
+    bar.style.transition = "";
+    num.classList.remove("lvup"); void num.offsetWidth; num.classList.add("lvup");
+    st.classList.remove("levelup"); void st.offsetWidth; st.classList.add("levelup");
+    burstAt(num, 24, 1.8);
+    if (navigator.vibrate) navigator.vibrate([20, 40, 20, 40, 60]);
+    lbl.textContent = "LEVEL UP!";
+    setTimeout(() => { lbl.textContent = "LEVEL"; }, 2000);
+  }, wait);
 }
 
 function undoRep(logId) {
@@ -429,7 +629,7 @@ function celebrate(completed) {
   setTimeout(() => toast.classList.remove("show"), 1400);
   if (navigator.vibrate) navigator.vibrate(completed ? [30,40,60] : 30);
   const colors = ["#6c6cff", "#ff6cab", "#ffd36c", "#6cffb0"];
-  const n = completed ? 48 : 24;
+  const n = completed ? 60 : 14;
   for (let i = 0; i < n; i++) {
     const c = document.createElement("div");
     c.className = "confetti";
@@ -442,8 +642,7 @@ function celebrate(completed) {
     c.animate([
       { transform: c.style.transform + " translateY(0)", opacity: 1 },
       { transform: "translate(" + drift + "px," + fall + "vh) rotate(720deg)", opacity: 0 }
-    ], { duration: 1400 + Math.random() * 600, easing: "cubic-bezier(.2,.6,.4,1)" });
-    setTimeout(() => c.remove(), 2000);
+    ], { duration: 1400 + Math.random() * 600, easing: "cubic-bezier(.2,.6,.4,1)", fill: "forwards" }).onfinish = () => c.remove();
   }
 }
 
@@ -452,6 +651,18 @@ document.getElementById("addbtn").onclick = addTask;
 document.getElementById("input").addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
 document.getElementById("target").addEventListener("keydown", e => { if (e.key === "Enter") e.preventDefault(); });
 document.getElementById("reloadBtn").onclick = () => location.reload();
+
+// クリア済みを畳む/開く
+function toggleArch() {
+  archOpen = !archOpen;
+  localStorage.setItem("motiv_archOpen", archOpen ? "1" : "0");
+  document.getElementById("archLabel").classList.toggle("closed", !archOpen);
+  document.getElementById("arch").style.display = archOpen ? "block" : "none";
+}
+document.getElementById("archLabel").onclick = toggleArch;
+document.getElementById("archLabel").addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleArch(); }
+});
 
 // ===== バックアップ(書き出し/読み込み) =====
 function exportData() {

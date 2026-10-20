@@ -105,6 +105,7 @@
     opacity: 0; transition: all .4s cubic-bezier(.2,.8,.2,1); z-index: 50; pointer-events: none;
   }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast { width: max-content; max-width: min(90vw, 420px); text-align: center; z-index: 200; } /* 長い言葉も窮屈に折り返さない */
 
   /* ポッチを押した時のモーション */
   .check { position: relative; border-width: 1.5px; }
@@ -172,15 +173,16 @@
   /* 上部ボタン(同期・更新) */
   .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; }
   .topbar h1 { font-size: 20px; font-weight: 700; }
-  .lead { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .lead { font-size: 12px; color: var(--muted); margin: -6px 2px 16px; }
 
   /* クリア済みの見出し(押すと畳める) */
   .arch-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
   .arch-toggle .chev { transition: transform .25s cubic-bezier(.2,.8,.2,1); }
   .arch-toggle.closed .chev { transform: rotate(-90deg); }
   .arch-count { background: var(--done); border-radius: 10px; padding: 1px 8px; font-size: 11px; letter-spacing: 0; }
-  .headbtns { display: flex; align-items: center; gap: 8px; }
-  .sync-btn { background: var(--card); color: var(--muted); border: none; border-radius: 20px; padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .headbtns { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .titlebox { min-width: 0; }
+  .sync-btn { background: var(--card); color: var(--muted); border: none; border-radius: 20px; padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; min-width: 76px; }
   .sync-btn.on { background: var(--accent); color: #fff; }
   .reload-btn { display: grid; place-items: center; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--card); color: var(--muted); cursor: pointer; flex-shrink: 0; transition: transform .45s cubic-bezier(.2,.8,.2,1), color .2s; }
   .reload-btn:hover { color: var(--accent); }
@@ -213,10 +215,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="titlebox">
-      <h1>とりあえず</h1>
-      <div class="lead">とりあえず1回。やるたびに成果がたまっていきます</div>
-    </div>
+    <h1>とりあえず</h1>
     <div class="headbtns">
     <button id="syncBtn" class="sync-btn" style="display:none">同期</button>
     <button id="reloadBtn" class="reload-btn" title="最新に更新" aria-label="最新に更新">
@@ -227,6 +226,7 @@
     </button>
     </div>
   </div>
+  <div class="lead">とりあえず1回。やるたびに成果がたまっていきます</div>
 
   <div class="status">
     <div class="lv">LEVEL</div>
@@ -616,9 +616,11 @@ function editTask(id) {
 }
 
 function removeTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (!confirm("「" + t.text + "」を削除しますか？\nクリア済みの記録は残ります")) return;
   state.tasks = state.tasks.filter(x => x.id !== id);
-  // そのタスクの記録も消す
-  state.log = state.log.filter(e => e.taskId !== id);
+  // クリア済みの記録(ログ)は消さずに残す
   save(); render();
 }
 
